@@ -1,10 +1,18 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
+<script>
+  // Apply saved theme before paint (avoids flash)
+  (function () {
+    var t = localStorage.getItem('petzker_theme') || 'light';
+    document.documentElement.setAttribute('data-theme', t);
+  })();
+</script>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Petzker Cookware — Team App</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Caveat:wght@400;500;600&display=swap" rel="stylesheet" />
   <style>
@@ -25,6 +33,45 @@
       --radius: 16px;
       --radius-sm: 10px;
       --shadow: 0 2px 12px rgba(0,0,0,0.06);
+
+      --diary-bg: #FDF8F0;
+      --diary-header-bg: #FDF8F0;
+      --diary-line: #E8D8C4;
+      --diary-margin: #F0C4C0;
+      --diary-text: #3D2B1A;
+      --diary-muted: #B89A7A;
+      --diary-placeholder: #C4A882;
+      --diary-accent: #7C5C3A;
+      --diary-entry-border: #DDD0C0;
+      --diary-empty: #C4A882;
+    }
+
+    [data-theme="dark"] {
+      --blue: #5B9EF5;
+      --blue-light: #1B3A5C;
+      --orange: #F5A542;
+      --orange-light: #3D2E14;
+      --bg: #14171C;
+      --surface: #1C2028;
+      --border: #2A2F38;
+      --text: #ECEEF1;
+      --text-muted: #8B94A0;
+      --green: #34D399;
+      --green-light: #113D2C;
+      --red: #F87171;
+      --red-light: #3D1B1B;
+      --shadow: 0 2px 12px rgba(0,0,0,0.35);
+
+      --diary-bg: #211D18;
+      --diary-header-bg: #211D18;
+      --diary-line: #3A3128;
+      --diary-margin: #5C3A38;
+      --diary-text: #E8DAC4;
+      --diary-muted: #A08A68;
+      --diary-placeholder: #6B5C46;
+      --diary-accent: #D4B483;
+      --diary-entry-border: #3A3128;
+      --diary-empty: #6B5C46;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -35,6 +82,7 @@
       color: var(--text);
       min-height: 100vh;
       overflow-x: hidden;
+      transition: background-color .2s, color .2s;
     }
 
     /* ── HEADER ── */
@@ -45,12 +93,18 @@
       position: sticky;
       top: 0;
       z-index: 100;
+      transition: background-color .2s, border-color .2s;
     }
     .header-logo {
       display: flex;
       align-items: center;
-      gap: 10px;
+      justify-content: space-between;
       margin-bottom: 14px;
+    }
+    .header-logo-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
     }
     .logo-icon {
       width: 36px;
@@ -60,16 +114,31 @@
       display: flex;
       align-items: center;
       justify-content: center;
+      flex-shrink: 0;
     }
     .logo-icon svg { width: 20px; height: 20px; }
     .logo-text { font-size: 15px; font-weight: 700; color: var(--text); }
     .logo-text span { color: var(--orange); }
 
-    /* ── TABS ── */
-    .tabs {
+    .theme-toggle {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--surface);
       display: flex;
-      gap: 4px;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: var(--text-muted);
+      transition: all .15s;
+      flex-shrink: 0;
     }
+    .theme-toggle:hover { border-color: var(--blue); color: var(--blue); }
+    .theme-toggle svg { width: 18px; height: 18px; }
+
+    /* ── TABS ── */
+    .tabs { display: flex; gap: 4px; }
     .tab {
       flex: 1;
       padding: 10px 0;
@@ -83,14 +152,24 @@
       border-bottom: 2px solid transparent;
       transition: all 0.2s;
     }
-    .tab.active {
-      color: var(--blue);
-      border-bottom-color: var(--blue);
-    }
+    .tab.active { color: var(--blue); border-bottom-color: var(--blue); }
 
     /* ── VIEWS ── */
     .view { display: none; padding: 20px; }
     .view.active { display: block; }
+
+    /* ── CONFIG BANNER ── */
+    .config-banner {
+      background: var(--orange-light);
+      color: var(--orange);
+      border: 1px solid var(--orange);
+      border-radius: var(--radius-sm);
+      padding: 10px 14px;
+      font-size: 12px;
+      line-height: 1.4;
+      margin-bottom: 16px;
+      display: none;
+    }
 
     /* ── CALENDAR ── */
     .calendar-nav {
@@ -99,11 +178,7 @@
       justify-content: space-between;
       margin-bottom: 20px;
     }
-    .month-label {
-      font-size: 17px;
-      font-weight: 700;
-      text-transform: capitalize;
-    }
+    .month-label { font-size: 17px; font-weight: 700; text-transform: capitalize; }
     .nav-btn {
       width: 36px;
       height: 36px;
@@ -136,11 +211,7 @@
       letter-spacing: 0.04em;
     }
 
-    .calendar-grid {
-      display: grid;
-      grid-template-columns: repeat(7, 1fr);
-      gap: 4px;
-    }
+    .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
     .day-cell {
       aspect-ratio: 1;
       border-radius: var(--radius-sm);
@@ -160,30 +231,16 @@
     .day-cell:hover:not(.empty):not(.past) { border-color: var(--blue); }
     .day-cell.empty { background: transparent; cursor: default; }
     .day-cell.past { opacity: 0.35; cursor: default; }
-    .day-cell.today {
-      border-color: var(--blue);
-      color: var(--blue);
-      font-weight: 700;
-    }
+    .day-cell.today { border-color: var(--blue); color: var(--blue); font-weight: 700; }
     .day-cell.weekend-day { color: var(--red); }
     .day-cell.has-one { border-color: var(--green); }
     .day-cell.has-two { border-color: var(--orange); background: var(--orange-light); }
     .day-cell.full { border-color: var(--red); background: var(--red-light); opacity: 0.6; cursor: not-allowed; }
 
     .day-num { font-size: 13px; line-height: 1; }
-    .day-dots {
-      display: flex;
-      gap: 2px;
-      margin-top: 3px;
-    }
-    .dot {
-      width: 5px;
-      height: 5px;
-      border-radius: 50%;
-      background: var(--blue);
-    }
+    .day-dots { display: flex; gap: 2px; margin-top: 3px; }
+    .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--blue); }
     .dot.orange { background: var(--orange); }
-    .dot.red { background: var(--red); }
 
     /* ── LEGEND ── */
     .legend {
@@ -196,18 +253,8 @@
       border-radius: var(--radius);
       border: 1px solid var(--border);
     }
-    .legend-item {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 12px;
-      color: var(--text-muted);
-    }
-    .legend-dot {
-      width: 10px;
-      height: 10px;
-      border-radius: 3px;
-    }
+    .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); }
+    .legend-dot { width: 10px; height: 10px; border-radius: 3px; }
 
     /* ── UPCOMING ── */
     .section-title {
@@ -248,22 +295,12 @@
       font-weight: 500;
       margin: 2px 3px 2px 0;
     }
-    .empty-state {
-      text-align: center;
-      padding: 32px 20px;
-      color: var(--text-muted);
-      font-size: 14px;
-    }
+    .empty-state { text-align: center; padding: 32px 20px; color: var(--text-muted); font-size: 14px; }
 
     /* ── MODAL ── */
     .overlay {
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,0.4);
-      z-index: 200;
-      display: none;
-      align-items: flex-end;
-      justify-content: center;
+      position: fixed; inset: 0; background: rgba(0,0,0,0.4);
+      z-index: 200; display: none; align-items: flex-end; justify-content: center;
     }
     .overlay.open { display: flex; }
     .modal {
@@ -274,33 +311,12 @@
       max-width: 480px;
       animation: slideUp 0.25s ease;
     }
-    @keyframes slideUp {
-      from { transform: translateY(40px); opacity: 0; }
-      to { transform: translateY(0); opacity: 1; }
-    }
-    .modal-handle {
-      width: 40px;
-      height: 4px;
-      background: var(--border);
-      border-radius: 2px;
-      margin: 0 auto 20px;
-    }
+    @keyframes slideUp { from { transform: translateY(40px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    .modal-handle { width: 40px; height: 4px; background: var(--border); border-radius: 2px; margin: 0 auto 20px; }
     .modal-title { font-size: 18px; font-weight: 700; margin-bottom: 6px; }
     .modal-sub { font-size: 13px; color: var(--text-muted); margin-bottom: 20px; }
-    .modal-who {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin-bottom: 20px;
-    }
-    .who-chip {
-      background: var(--blue-light);
-      color: var(--blue);
-      border-radius: 20px;
-      padding: 5px 12px;
-      font-size: 13px;
-      font-weight: 500;
-    }
+    .modal-who { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+    .who-chip { background: var(--blue-light); color: var(--blue); border-radius: 20px; padding: 5px 12px; font-size: 13px; font-weight: 500; }
     .modal-input {
       width: 100%;
       padding: 13px 16px;
@@ -311,6 +327,7 @@
       outline: none;
       transition: border-color 0.2s;
       background: var(--bg);
+      color: var(--text);
     }
     .modal-input:focus { border-color: var(--blue); }
     .modal-input.error { border-color: var(--red); }
@@ -318,193 +335,107 @@
     .modal-error.show { display: block; }
     .modal-actions { display: flex; gap: 10px; margin-top: 16px; }
     .btn-primary {
-      flex: 1;
-      padding: 14px;
-      background: var(--blue);
-      color: white;
-      border: none;
-      border-radius: var(--radius-sm);
-      font-size: 15px;
-      font-weight: 600;
-      cursor: pointer;
-      font-family: inherit;
-      transition: opacity 0.15s;
+      flex: 1; padding: 14px; background: var(--blue); color: white; border: none;
+      border-radius: var(--radius-sm); font-size: 15px; font-weight: 600; cursor: pointer;
+      font-family: inherit; transition: opacity 0.15s;
     }
     .btn-primary:hover { opacity: 0.9; }
     .btn-secondary {
-      padding: 14px 20px;
-      background: var(--bg);
-      color: var(--text-muted);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      font-size: 15px;
-      font-weight: 500;
-      cursor: pointer;
-      font-family: inherit;
+      padding: 14px 20px; background: var(--bg); color: var(--text-muted);
+      border: 1px solid var(--border); border-radius: var(--radius-sm);
+      font-size: 15px; font-weight: 500; cursor: pointer; font-family: inherit;
     }
     .btn-remove {
-      width: 100%;
-      padding: 13px;
-      background: var(--red-light);
-      color: var(--red);
-      border: 1px solid #FECACA;
-      border-radius: var(--radius-sm);
-      font-size: 14px;
-      font-weight: 500;
-      cursor: pointer;
-      font-family: inherit;
-      margin-top: 8px;
+      width: 100%; padding: 13px; background: var(--red-light); color: var(--red);
+      border: 1px solid var(--red); border-radius: var(--radius-sm);
+      font-size: 14px; font-weight: 500; cursor: pointer; font-family: inherit; margin-top: 8px;
+      opacity: .85;
     }
 
     /* ── DIARY ── */
-    #view-diary {
-      padding: 0;
-    }
+    #view-diary { padding: 0; }
     .diary-bg {
       min-height: calc(100vh - 120px);
       background:
-        linear-gradient(to bottom, transparent 39px, #E8D8C4 39px),
-        linear-gradient(to right, transparent 48px, transparent 48px);
-      background-size: 100% 40px, 100% 100%;
-      background-color: #FDF8F0;
+        linear-gradient(to bottom, transparent 39px, var(--diary-line) 39px);
+      background-size: 100% 40px;
+      background-color: var(--diary-bg);
       padding: 20px 20px 20px 60px;
       position: relative;
+      transition: background-color .2s;
     }
     .diary-margin-line {
-      position: absolute;
-      left: 52px;
-      top: 0;
-      bottom: 0;
-      width: 1.5px;
-      background: #F0C4C0;
-      pointer-events: none;
+      position: absolute; left: 52px; top: 0; bottom: 0; width: 1.5px;
+      background: var(--diary-margin); pointer-events: none;
     }
     .diary-header-strip {
-      background: #FDF8F0;
+      background: var(--diary-header-bg);
       padding: 20px 20px 14px;
-      border-bottom: 2px solid #E8D8C4;
-      position: sticky;
-      top: 0;
-      z-index: 10;
+      border-bottom: 2px solid var(--diary-line);
+      position: sticky; top: 0; z-index: 10;
+      transition: background-color .2s, border-color .2s;
     }
-    .diary-title {
-      font-family: 'Caveat', cursive;
-      font-size: 26px;
-      font-weight: 600;
-      color: #7C5C3A;
-      margin-bottom: 2px;
-    }
-    .diary-subtitle {
-      font-size: 12px;
-      color: #B89A7A;
-      font-style: italic;
-    }
-    .diary-new-entry {
-      margin-bottom: 24px;
-    }
-    .diary-date-label {
-      font-family: 'Caveat', cursive;
-      font-size: 15px;
-      color: #B89A7A;
-      margin-bottom: 8px;
-    }
+    .diary-title { font-family: 'Caveat', cursive; font-size: 26px; font-weight: 600; color: var(--diary-accent); margin-bottom: 2px; }
+    .diary-subtitle { font-size: 12px; color: var(--diary-muted); font-style: italic; }
+    .diary-new-entry { margin-bottom: 24px; }
+    .diary-date-label { font-family: 'Caveat', cursive; font-size: 15px; color: var(--diary-muted); margin-bottom: 8px; }
     .diary-textarea {
-      width: 100%;
-      min-height: 100px;
-      background: transparent;
-      border: none;
-      outline: none;
-      font-family: 'Caveat', cursive;
-      font-size: 18px;
-      color: #3D2B1A;
-      resize: none;
-      line-height: 40px;
-      padding: 2px 0;
+      width: 100%; min-height: 100px; background: transparent; border: none; outline: none;
+      font-family: 'Caveat', cursive; font-size: 18px; color: var(--diary-text);
+      resize: none; line-height: 40px; padding: 2px 0;
     }
-    .diary-textarea::placeholder { color: #C4A882; }
+    .diary-textarea::placeholder { color: var(--diary-placeholder); }
     .diary-add-btn {
-      margin-top: 6px;
-      padding: 10px 22px;
-      background: #7C5C3A;
-      color: white;
-      border: none;
-      border-radius: 20px;
-      font-family: 'Caveat', cursive;
-      font-size: 16px;
-      cursor: pointer;
-      transition: opacity 0.2s;
+      margin-top: 6px; padding: 10px 22px; background: var(--diary-accent); color: var(--diary-bg);
+      border: none; border-radius: 20px; font-family: 'Caveat', cursive; font-size: 16px;
+      cursor: pointer; transition: opacity 0.2s; font-weight: 600;
     }
     .diary-add-btn:hover { opacity: 0.85; }
-    .diary-divider {
-      height: 1px;
-      background: #E8D8C4;
-      margin: 20px 0;
+    .diary-divider { height: 1px; background: var(--diary-line); margin: 20px 0; }
+    .diary-entries { display: flex; flex-direction: column; gap: 0; min-height: 60px; }
+    .diary-entry { padding: 12px 0; border-bottom: 1px dashed var(--diary-entry-border); }
+    .diary-entry-date { font-family: 'Caveat', cursive; font-size: 13px; color: var(--diary-muted); margin-bottom: 4px; }
+    .diary-entry-text { font-family: 'Caveat', cursive; font-size: 18px; color: var(--diary-text); line-height: 1.6; white-space: pre-wrap; }
+    .diary-empty { font-family: 'Caveat', cursive; font-size: 17px; color: var(--diary-empty); text-align: center; padding: 32px 0; font-style: italic; }
+
+    /* ── PAGINATION ── */
+    .diary-pagination { display: flex; align-items: center; justify-content: center; gap: 6px; margin: 22px 0 8px; flex-wrap: wrap; }
+    .page-btn {
+      min-width: 32px; height: 32px; padding: 0 8px; border-radius: 8px;
+      border: 1px solid var(--diary-entry-border); background: var(--diary-bg); color: var(--diary-muted);
+      font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center;
+      justify-content: center; font-family: 'Inter', sans-serif; transition: all .15s;
     }
-    .diary-entries { display: flex; flex-direction: column; gap: 0; }
-    .diary-entry {
-      padding: 12px 0;
-      border-bottom: 1px dashed #DDD0C0;
-    }
-    .diary-entry-date {
-      font-family: 'Caveat', cursive;
-      font-size: 13px;
-      color: #B89A7A;
-      margin-bottom: 4px;
-    }
-    .diary-entry-text {
-      font-family: 'Caveat', cursive;
-      font-size: 18px;
-      color: #3D2B1A;
-      line-height: 1.6;
-      white-space: pre-wrap;
-    }
-    .diary-empty {
-      font-family: 'Caveat', cursive;
-      font-size: 17px;
-      color: #C4A882;
-      text-align: center;
-      padding: 32px 0;
-      font-style: italic;
-    }
+    .page-btn:hover:not(:disabled) { border-color: var(--diary-accent); color: var(--diary-accent); }
+    .page-btn.active { background: var(--diary-accent); border-color: var(--diary-accent); color: var(--diary-bg); }
+    .page-btn:disabled { opacity: .3; cursor: not-allowed; }
+    .page-ellipsis { color: var(--diary-muted); font-size: 13px; padding: 0 2px; }
 
     /* ── TOAST ── */
     .toast {
-      position: fixed;
-      bottom: 80px;
-      left: 50%;
-      transform: translateX(-50%) translateY(20px);
-      background: #1A1D23;
-      color: white;
-      padding: 10px 20px;
-      border-radius: 30px;
-      font-size: 13px;
-      font-weight: 500;
-      opacity: 0;
-      transition: all 0.25s;
-      z-index: 300;
-      pointer-events: none;
-      white-space: nowrap;
+      position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%) translateY(20px);
+      background: #1A1D23; color: white; padding: 10px 20px; border-radius: 30px;
+      font-size: 13px; font-weight: 500; opacity: 0; transition: all 0.25s;
+      z-index: 300; pointer-events: none; white-space: nowrap; max-width: 90vw; text-align: center;
     }
-    .toast.show {
-      opacity: 1;
-      transform: translateX(-50%) translateY(0);
-    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
   </style>
 </head>
 <body>
 
 <div class="header">
   <div class="header-logo">
-    <div class="logo-icon">
-      <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="11" cy="11" r="7"/>
-        <line x1="16.5" y1="5" x2="19" y2="2"/>
-        <line x1="2" y1="18" x2="5" y2="21" stroke-width="3"/>
-      </svg>
-    </div>
-    <div>
+    <div class="header-logo-left">
+      <div class="logo-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="7"/>
+          <line x1="16.5" y1="5" x2="19" y2="2"/>
+          <line x1="2" y1="18" x2="5" y2="21" stroke-width="3"/>
+        </svg>
+      </div>
       <div class="logo-text">Petzker <span>Cookware</span></div>
     </div>
+    <button class="theme-toggle" onclick="toggleTheme()" id="theme-toggle-btn" aria-label="Переключить тему"></button>
   </div>
   <div class="tabs">
     <button class="tab active" onclick="switchTab('calendar')">📅 Выходные</button>
@@ -514,6 +445,10 @@
 
 <!-- CALENDAR VIEW -->
 <div id="view-calendar" class="view active">
+  <div class="config-banner" id="config-banner">
+    ⚠️ Общая база данных не подключена — записи видны только на этом устройстве. Смотрите README.md, чтобы включить общий доступ для всей команды.
+  </div>
+
   <div class="calendar-nav">
     <button class="nav-btn" onclick="changeMonth(-1)">‹</button>
     <div class="month-label" id="month-label"></div>
@@ -530,15 +465,9 @@
   <div class="calendar-grid" id="calendar-grid"></div>
 
   <div class="legend">
-    <div class="legend-item">
-      <div class="legend-dot" style="background:var(--green)"></div> 1 человек
-    </div>
-    <div class="legend-item">
-      <div class="legend-dot" style="background:var(--orange)"></div> 2 человека
-    </div>
-    <div class="legend-item">
-      <div class="legend-dot" style="background:var(--red)"></div> Мест нет
-    </div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--green)"></div> 1 человек</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--orange)"></div> 2 человека</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--red)"></div> Мест нет</div>
   </div>
 
   <div class="section-title">Ближайшие выходные</div>
@@ -555,12 +484,12 @@
     <div class="diary-margin-line"></div>
     <div class="diary-new-entry">
       <div class="diary-date-label" id="diary-today-label"></div>
-      <textarea class="diary-textarea" id="diary-input"
-        placeholder="Что хорошего было сегодня или вчера?.."></textarea>
+      <textarea class="diary-textarea" id="diary-input" placeholder="Что хорошего было сегодня или вчера?.."></textarea>
       <button class="diary-add-btn" onclick="addDiaryEntry()">Записать ✦</button>
     </div>
     <div class="diary-divider"></div>
     <div class="diary-entries" id="diary-entries"></div>
+    <div class="diary-pagination" id="diary-pagination"></div>
   </div>
 </div>
 
@@ -572,17 +501,14 @@
     <div class="modal-sub" id="modal-sub"></div>
     <div class="modal-who" id="modal-who"></div>
     <div id="modal-form">
-      <input class="modal-input" id="name-input" type="text"
-             placeholder="Ваше имя" maxlength="30"
+      <input class="modal-input" id="name-input" type="text" placeholder="Ваше имя" maxlength="30"
              onkeydown="if(event.key==='Enter') confirmDay()" />
       <div class="modal-error" id="modal-error"></div>
       <div class="modal-actions">
         <button class="btn-secondary" onclick="closeModal()">Отмена</button>
         <button class="btn-primary" onclick="confirmDay()">Взять выходной</button>
       </div>
-      <button class="btn-remove" id="remove-btn" onclick="removeMyself()" style="display:none">
-        Убрать свой выходной
-      </button>
+      <button class="btn-remove" id="remove-btn" onclick="removeMyself()" style="display:none">Убрать свой выходной</button>
     </div>
   </div>
 </div>
@@ -591,40 +517,146 @@
 
 <script>
 // ═══════════════════════════════════════════════
-// STORAGE  (localStorage — works on GitHub Pages)
+// SUPABASE CONFIG — вставьте свои значения сюда
+// (инструкция в README.md)
 // ═══════════════════════════════════════════════
-const STORAGE_KEY = 'petzker_vacations_v2';
-const DIARY_KEY   = 'petzker_diary_v1';
+const SUPABASE_URL = 'https://heubrattlnikielnfheg.supabase.co/rest/v1/';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhldWJyYXR0bG5pa2llbG5maGVnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ5NzYyMjcsImV4cCI6MjEwMDU1MjIyN30._lRs77YnsILFN_Ru4uR2wDWQFtAlazZh8UaaKa7fsnM';
 
-function loadVacations() {
-  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; }
+const USE_SUPABASE = SUPABASE_URL.indexOf('http') === 0 && SUPABASE_ANON_KEY.length > 20;
+let supabaseClient = null;
+if (USE_SUPABASE) {
+  supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+}
+
+// ═══════════════════════════════════════════════
+// LOCAL STORAGE FALLBACK (used when Supabase isn't configured)
+// ═══════════════════════════════════════════════
+const LS_VACATIONS = 'petzker_vacations_v3';
+const LS_DIARY = 'petzker_diary_v2';
+
+function loadVacationsLocal() {
+  try { return JSON.parse(localStorage.getItem(LS_VACATIONS)) || {}; }
   catch { return {}; }
 }
-function saveVacations(data) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-}
-function loadDiary() {
-  try { return JSON.parse(localStorage.getItem(DIARY_KEY)) || []; }
+function saveVacationsLocal(data) { localStorage.setItem(LS_VACATIONS, JSON.stringify(data)); }
+
+function loadDiaryLocal() {
+  try { return JSON.parse(localStorage.getItem(LS_DIARY)) || []; }
   catch { return []; }
 }
-function saveDiary(data) {
-  localStorage.setItem(DIARY_KEY, JSON.stringify(data));
+function saveDiaryLocal(data) { localStorage.setItem(LS_DIARY, JSON.stringify(data)); }
+
+function uid() {
+  return (crypto.randomUUID) ? crypto.randomUUID() : 'id-' + Date.now() + '-' + Math.random().toString(16).slice(2);
+}
+
+// ═══════════════════════════════════════════════
+// DATA LAYER (Supabase-aware, falls back to localStorage)
+// ═══════════════════════════════════════════════
+async function fetchVacations() {
+  if (!USE_SUPABASE) return loadVacationsLocal();
+  const { data, error } = await supabaseClient.from('vacations').select('*').order('created_at');
+  if (error) { console.error(error); return loadVacationsLocal(); }
+  const grouped = {};
+  data.forEach(row => {
+    if (!grouped[row.day]) grouped[row.day] = [];
+    grouped[row.day].push({ id: row.id, name: row.name });
+  });
+  return grouped;
+}
+
+async function fetchDayEntries(day) {
+  if (!USE_SUPABASE) return loadVacationsLocal()[day] || [];
+  const { data, error } = await supabaseClient.from('vacations').select('*').eq('day', day).order('created_at');
+  if (error) { console.error(error); return vacations[day] || []; }
+  return data.map(r => ({ id: r.id, name: r.name }));
+}
+
+async function insertVacation(day, name) {
+  if (USE_SUPABASE) {
+    const { data, error } = await supabaseClient.from('vacations').insert({ day, name }).select().single();
+    if (error) throw error;
+    return { id: data.id, name };
+  }
+  const id = uid();
+  const all = loadVacationsLocal();
+  if (!all[day]) all[day] = [];
+  all[day].push({ id, name });
+  saveVacationsLocal(all);
+  return { id, name };
+}
+
+async function deleteVacation(day, id) {
+  if (USE_SUPABASE) {
+    const { error } = await supabaseClient.from('vacations').delete().eq('id', id);
+    if (error) throw error;
+    return;
+  }
+  const all = loadVacationsLocal();
+  if (all[day]) {
+    all[day] = all[day].filter(v => v.id !== id);
+    if (!all[day].length) delete all[day];
+    saveVacationsLocal(all);
+  }
+}
+
+async function fetchDiary() {
+  if (!USE_SUPABASE) return loadDiaryLocal();
+  const { data, error } = await supabaseClient.from('diary_entries').select('*').order('created_at', { ascending: true });
+  if (error) { console.error(error); return loadDiaryLocal(); }
+  return data.map(r => ({ id: r.id, text: r.text, created_at: r.created_at }));
+}
+
+async function insertDiaryEntry(text) {
+  if (USE_SUPABASE) {
+    const { data, error } = await supabaseClient.from('diary_entries').insert({ text }).select().single();
+    if (error) throw error;
+    return { id: data.id, text, created_at: data.created_at };
+  }
+  const entry = { id: uid(), text, created_at: new Date().toISOString() };
+  const all = loadDiaryLocal();
+  all.push(entry);
+  saveDiaryLocal(all);
+  return entry;
 }
 
 // ═══════════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════════
 const today = new Date();
-let curYear  = today.getFullYear();
+let curYear = today.getFullYear();
 let curMonth = today.getMonth();
 let selectedKey = null;
-let vacations   = loadVacations();
+let vacations = {};
+let diaryEntries = [];
+let diaryPage = 1;
+const DIARY_PAGE_SIZE = 6;
+
+// ═══════════════════════════════════════════════
+// THEME
+// ═══════════════════════════════════════════════
+const SUN_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="4.2" y1="4.2" x2="5.6" y2="5.6"/><line x1="18.4" y1="18.4" x2="19.8" y2="19.8"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/><line x1="4.2" y1="19.8" x2="5.6" y2="18.4"/><line x1="18.4" y1="5.6" x2="19.8" y2="4.2"/></svg>';
+const MOON_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
+
+function applyThemeIcon() {
+  const theme = document.documentElement.getAttribute('data-theme') || 'light';
+  document.getElementById('theme-toggle-btn').innerHTML = theme === 'dark' ? SUN_ICON : MOON_ICON;
+}
+
+function toggleTheme() {
+  const html = document.documentElement;
+  const next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+  html.setAttribute('data-theme', next);
+  localStorage.setItem('petzker_theme', next);
+  applyThemeIcon();
+}
 
 // ═══════════════════════════════════════════════
 // TABS
 // ═══════════════════════════════════════════════
 function switchTab(tab) {
-  document.querySelectorAll('.tab').forEach((t,i) => {
+  document.querySelectorAll('.tab').forEach((t, i) => {
     t.classList.toggle('active', (i === 0) === (tab === 'calendar'));
   });
   document.getElementById('view-calendar').classList.toggle('active', tab === 'calendar');
@@ -635,36 +667,30 @@ function switchTab(tab) {
 // ═══════════════════════════════════════════════
 // CALENDAR
 // ═══════════════════════════════════════════════
-const MONTHS_RU = ['Январь','Февраль','Март','Апрель','Май','Июнь',
-                   'Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
-const MONTHS_RU_GEN = ['января','февраля','марта','апреля','мая','июня',
-                        'июля','августа','сентября','октября','ноября','декабря'];
+const MONTHS_RU = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+const MONTHS_RU_GEN = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
+const WEEKDAYS_RU = ['воскресенье','понедельник','вторник','среда','четверг','пятница','суббота'];
 
-function dayKey(y, m, d) {
-  return `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-}
+function dayKey(y, m, d) { return `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`; }
 
 function changeMonth(dir) {
   curMonth += dir;
   if (curMonth > 11) { curMonth = 0; curYear++; }
-  if (curMonth < 0)  { curMonth = 11; curYear--; }
-  // don't go before current month
-  if (curYear < today.getFullYear() ||
-      (curYear === today.getFullYear() && curMonth < today.getMonth())) {
+  if (curMonth < 0) { curMonth = 11; curYear--; }
+  if (curYear < today.getFullYear() || (curYear === today.getFullYear() && curMonth < today.getMonth())) {
     curMonth = today.getMonth(); curYear = today.getFullYear();
   }
   renderCalendar();
 }
 
 function renderCalendar() {
-  document.getElementById('month-label').textContent =
-    `${MONTHS_RU[curMonth]} ${curYear}`;
+  document.getElementById('month-label').textContent = `${MONTHS_RU[curMonth]} ${curYear}`;
 
   const grid = document.getElementById('calendar-grid');
   grid.innerHTML = '';
 
-  const firstDay = new Date(curYear, curMonth, 1).getDay(); // 0=Sun
-  const shift = (firstDay === 0) ? 6 : firstDay - 1;       // Mon-based
+  const firstDay = new Date(curYear, curMonth, 1).getDay();
+  const shift = (firstDay === 0) ? 6 : firstDay - 1;
   const daysInMonth = new Date(curYear, curMonth + 1, 0).getDate();
 
   for (let i = 0; i < shift; i++) {
@@ -674,45 +700,36 @@ function renderCalendar() {
   }
 
   for (let d = 1; d <= daysInMonth; d++) {
-    const key  = dayKey(curYear, curMonth, d);
+    const key = dayKey(curYear, curMonth, d);
     const date = new Date(curYear, curMonth, d);
-    const dow  = date.getDay();
+    const dow = date.getDay();
     const isWeekend = (dow === 0 || dow === 6);
     const isPast = date < new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    const names  = vacations[key] || [];
-    const count  = names.length;
+    const names = vacations[key] || [];
+    const count = names.length;
 
     const cell = document.createElement('div');
     cell.className = 'day-cell';
     if (isWeekend) cell.classList.add('weekend-day');
-    if (isPast)    cell.classList.add('past');
+    if (isPast) cell.classList.add('past');
     if (date.toDateString() === today.toDateString()) cell.classList.add('today');
     if (count === 1) cell.classList.add('has-one');
     if (count === 2) cell.classList.add('has-two');
-    if (count >= 2)  cell.classList.add('full');
+    if (count >= 2) cell.classList.add('full');
 
     let dots = '';
     if (count > 0) {
-      dots = '<div class="day-dots">' +
-        names.slice(0,2).map((_, i) =>
-          `<div class="dot ${count >= 2 ? 'orange' : ''}"></div>`
-        ).join('') +
-        '</div>';
+      dots = '<div class="day-dots">' + names.slice(0,2).map(() => `<div class="dot ${count >= 2 ? 'orange' : ''}"></div>`).join('') + '</div>';
     }
 
     cell.innerHTML = `<div class="day-num">${d}</div>${dots}`;
-
-    if (!isPast) {
-      cell.addEventListener('click', () => openModal(key, d));
-    }
-
+    if (!isPast) cell.addEventListener('click', () => openModal(key, d));
     grid.appendChild(cell);
   }
 
   renderUpcoming();
 }
 
-// ─── UPCOMING LIST ───
 function renderUpcoming() {
   const list = document.getElementById('upcoming-list');
   list.innerHTML = '';
@@ -722,10 +739,7 @@ function renderUpcoming() {
   cutoff.setDate(cutoff.getDate() + 60);
 
   const relevant = Object.entries(vacations)
-    .filter(([k, v]) => {
-      const d = new Date(k);
-      return d >= todayMidnight && d <= cutoff && v.length > 0;
-    })
+    .filter(([k, v]) => { const d = new Date(k); return d >= todayMidnight && d <= cutoff && v.length > 0; })
     .sort(([a],[b]) => a.localeCompare(b))
     .slice(0, 10);
 
@@ -743,9 +757,7 @@ function renderUpcoming() {
         <div class="ud-day">${d.getDate()}</div>
         <div class="ud-mon">${MONTHS_RU_GEN[d.getMonth()].slice(0,3)}</div>
       </div>
-      <div class="upcoming-names">
-        ${names.map(n => `<span class="name-chip">${n}</span>`).join('')}
-      </div>`;
+      <div class="upcoming-names">${names.map(n => `<span class="name-chip">${n.name}</span>`).join('')}</div>`;
     list.appendChild(item);
   });
 }
@@ -753,38 +765,40 @@ function renderUpcoming() {
 // ═══════════════════════════════════════════════
 // MODAL
 // ═══════════════════════════════════════════════
-function openModal(key, day) {
-  selectedKey = key;
-  const names = vacations[key] || [];
-  const d = new Date(key + 'T00:00:00');
-  const full = names.length >= 2;
-
-  document.getElementById('modal-title').textContent =
-    `${day} ${MONTHS_RU_GEN[d.getMonth()]} ${d.getFullYear()}`;
+function renderModalContent(day, names) {
+  const d = new Date(day + 'T00:00:00');
+  document.getElementById('modal-title').textContent = `${d.getDate()} ${MONTHS_RU_GEN[d.getMonth()]} ${d.getFullYear()}`;
 
   const whoDiv = document.getElementById('modal-who');
   if (names.length) {
-    whoDiv.innerHTML = names.map(n => `<span class="who-chip">${n}</span>`).join('');
+    whoDiv.innerHTML = names.map(n => `<span class="who-chip">${n.name}</span>`).join('');
     whoDiv.style.display = 'flex';
   } else {
     whoDiv.style.display = 'none';
   }
 
+  const full = names.length >= 2;
   if (full) {
     document.getElementById('modal-sub').textContent = '😅 Уже 2 человека — мест нет!';
     document.getElementById('modal-form').style.display = 'none';
   } else {
-    document.getElementById('modal-sub').textContent =
-      names.length ? 'Ещё одно место свободно!' : 'Запишите своё имя';
+    document.getElementById('modal-sub').textContent = names.length ? 'Ещё одно место свободно!' : 'Запишите своё имя';
     document.getElementById('modal-form').style.display = 'block';
   }
+}
 
-  document.getElementById('modal-error').classList.remove('show');
+async function openModal(key, day) {
+  selectedKey = key;
+  document.getElementById('modal-overlay').classList.add('open');
   document.getElementById('name-input').value = '';
   document.getElementById('name-input').classList.remove('error');
+  document.getElementById('modal-error').classList.remove('show');
   document.getElementById('remove-btn').style.display = 'none';
 
-  document.getElementById('modal-overlay').classList.add('open');
+  const names = await fetchDayEntries(key);
+  vacations[key] = names;
+  renderModalContent(key, names);
+
   setTimeout(() => document.getElementById('name-input').focus(), 200);
 }
 
@@ -792,15 +806,12 @@ function closeModal() {
   document.getElementById('modal-overlay').classList.remove('open');
   selectedKey = null;
 }
+function closeModalOutside(e) { if (e.target === document.getElementById('modal-overlay')) closeModal(); }
 
-function closeModalOutside(e) {
-  if (e.target === document.getElementById('modal-overlay')) closeModal();
-}
-
-function confirmDay() {
+async function confirmDay() {
   const nameEl = document.getElementById('name-input');
-  const errEl  = document.getElementById('modal-error');
-  const name   = nameEl.value.trim();
+  const errEl = document.getElementById('modal-error');
+  const name = nameEl.value.trim();
 
   errEl.classList.remove('show');
   nameEl.classList.remove('error');
@@ -812,91 +823,147 @@ function confirmDay() {
     return;
   }
 
-  if (!vacations[selectedKey]) vacations[selectedKey] = [];
-  const list = vacations[selectedKey];
+  const current = await fetchDayEntries(selectedKey);
+  vacations[selectedKey] = current;
+  renderModalContent(selectedKey, current);
 
-  if (list.includes(name)) {
-    // show remove btn
+  if (current.some(v => v.name === name)) {
     document.getElementById('remove-btn').style.display = 'block';
     errEl.textContent = `${name} уже записан — хотите убрать?`;
     errEl.classList.add('show');
     return;
   }
 
-  if (list.length >= 2) {
+  if (current.length >= 2) {
     errEl.textContent = 'Мест нет! Максимум 2 человека.';
     errEl.classList.add('show');
     return;
   }
 
-  list.push(name);
-  saveVacations(vacations);
-  closeModal();
-  renderCalendar();
-  showToast(`✅ ${name} записан на выходной!`);
+  try {
+    const entry = await insertVacation(selectedKey, name);
+    if (!vacations[selectedKey]) vacations[selectedKey] = [];
+    vacations[selectedKey].push(entry);
+    closeModal();
+    renderCalendar();
+    showToast(`✅ ${name} записан на выходной!`);
+  } catch (e) {
+    console.error(e);
+    errEl.textContent = 'Ошибка сохранения. Попробуйте ещё раз.';
+    errEl.classList.add('show');
+  }
 }
 
-function removeMyself() {
+async function removeMyself() {
   const name = document.getElementById('name-input').value.trim();
-  if (!name || !vacations[selectedKey]) return;
-  vacations[selectedKey] = vacations[selectedKey].filter(n => n !== name);
-  if (!vacations[selectedKey].length) delete vacations[selectedKey];
-  saveVacations(vacations);
-  closeModal();
-  renderCalendar();
-  showToast(`Выходной для ${name} убран`);
+  if (!name) return;
+  const list = vacations[selectedKey] || [];
+  const match = list.find(v => v.name === name);
+  if (!match) return;
+
+  try {
+    await deleteVacation(selectedKey, match.id);
+    vacations[selectedKey] = list.filter(v => v.id !== match.id);
+    if (!vacations[selectedKey].length) delete vacations[selectedKey];
+    closeModal();
+    renderCalendar();
+    showToast(`Выходной для ${name} убран`);
+  } catch (e) {
+    console.error(e);
+    showToast('Ошибка. Попробуйте ещё раз.');
+  }
 }
 
 // ═══════════════════════════════════════════════
-// DIARY
+// DIARY (chronological, paginated — oldest on top, newest at bottom)
 // ═══════════════════════════════════════════════
-function renderDiary() {
-  const days = ['воскресенье','понедельник','вторник','среда',
-                'четверг','пятница','суббота'];
-  const label = `${days[today.getDay()]}, ${today.getDate()} ${MONTHS_RU_GEN[today.getMonth()]}`;
-  document.getElementById('diary-today-label').textContent = label;
+function formatDiaryDate(iso) {
+  const d = new Date(iso);
+  return `${WEEKDAYS_RU[d.getDay()]}, ${d.getDate()} ${MONTHS_RU_GEN[d.getMonth()]}`;
+}
 
-  const entries = loadDiary();
+function renderDiary() {
+  document.getElementById('diary-today-label').textContent =
+    `${WEEKDAYS_RU[today.getDay()]}, ${today.getDate()} ${MONTHS_RU_GEN[today.getMonth()]}`;
+
+  const totalPages = Math.max(1, Math.ceil(diaryEntries.length / DIARY_PAGE_SIZE));
+  if (diaryPage > totalPages) diaryPage = totalPages;
+  if (diaryPage < 1) diaryPage = 1;
+
+  const start = (diaryPage - 1) * DIARY_PAGE_SIZE;
+  const pageEntries = diaryEntries.slice(start, start + DIARY_PAGE_SIZE);
+
   const container = document.getElementById('diary-entries');
   container.innerHTML = '';
 
-  if (!entries.length) {
+  if (!diaryEntries.length) {
     container.innerHTML = '<div class="diary-empty">Пока пусто... Напишите первым ✦</div>';
-    return;
+  } else {
+    pageEntries.forEach(e => {
+      const div = document.createElement('div');
+      div.className = 'diary-entry';
+      div.innerHTML = `<div class="diary-entry-date">${formatDiaryDate(e.created_at)}</div>
+        <div class="diary-entry-text">${escHtml(e.text)}</div>`;
+      container.appendChild(div);
+    });
   }
 
-  [...entries].reverse().forEach(e => {
-    const div = document.createElement('div');
-    div.className = 'diary-entry';
-    div.innerHTML = `
-      <div class="diary-entry-date">${e.date}</div>
-      <div class="diary-entry-text">${escHtml(e.text)}</div>`;
-    container.appendChild(div);
-  });
+  renderPagination(totalPages);
 }
 
-function addDiaryEntry() {
+function renderPagination(totalPages) {
+  const el = document.getElementById('diary-pagination');
+  if (totalPages <= 1) { el.innerHTML = ''; return; }
+
+  let html = '';
+  html += `<button class="page-btn" onclick="goToDiaryPage(1)" ${diaryPage===1?'disabled':''} aria-label="В начало">«</button>`;
+  html += `<button class="page-btn" onclick="goToDiaryPage(${diaryPage-1})" ${diaryPage===1?'disabled':''} aria-label="Назад">‹</button>`;
+
+  const maxShown = 5;
+  let startP = Math.max(1, diaryPage - 2);
+  let endP = Math.min(totalPages, startP + maxShown - 1);
+  startP = Math.max(1, endP - maxShown + 1);
+
+  if (startP > 1) {
+    html += `<button class="page-btn" onclick="goToDiaryPage(1)">1</button>`;
+    if (startP > 2) html += `<span class="page-ellipsis">…</span>`;
+  }
+  for (let p = startP; p <= endP; p++) {
+    html += `<button class="page-btn ${p===diaryPage?'active':''}" onclick="goToDiaryPage(${p})">${p}</button>`;
+  }
+  if (endP < totalPages) {
+    if (endP < totalPages - 1) html += `<span class="page-ellipsis">…</span>`;
+    html += `<button class="page-btn" onclick="goToDiaryPage(${totalPages})">${totalPages}</button>`;
+  }
+
+  html += `<button class="page-btn" onclick="goToDiaryPage(${diaryPage+1})" ${diaryPage===totalPages?'disabled':''} aria-label="Вперёд">›</button>`;
+  html += `<button class="page-btn" onclick="goToDiaryPage(${totalPages})" ${diaryPage===totalPages?'disabled':''} aria-label="В конец">»</button>`;
+
+  el.innerHTML = html;
+}
+
+function goToDiaryPage(p) { diaryPage = p; renderDiary(); }
+
+async function addDiaryEntry() {
   const ta = document.getElementById('diary-input');
   const text = ta.value.trim();
   if (!text) return;
 
-  const days = ['воскресенье','понедельник','вторник','среда',
-                'четверг','пятница','суббота'];
-  const now = new Date();
-  const dateStr = `${days[now.getDay()]}, ${now.getDate()} ${MONTHS_RU_GEN[now.getMonth()]}`;
-
-  const entries = loadDiary();
-  entries.push({ date: dateStr, text });
-  saveDiary(entries);
-
-  ta.value = '';
-  renderDiary();
-  showToast('✦ Записано!');
+  try {
+    const entry = await insertDiaryEntry(text);
+    diaryEntries.push(entry);
+    ta.value = '';
+    diaryPage = Math.ceil(diaryEntries.length / DIARY_PAGE_SIZE); // jump to last page (newest)
+    renderDiary();
+    showToast('✦ Записано!');
+  } catch (e) {
+    console.error(e);
+    showToast('Ошибка сохранения. Попробуйте ещё раз.');
+  }
 }
 
 function escHtml(s) {
-  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
-          .replace(/\n/g,'<br>');
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
 }
 
 // ═══════════════════════════════════════════════
@@ -912,16 +979,51 @@ function showToast(msg) {
 }
 
 // ═══════════════════════════════════════════════
+// REALTIME (only active when Supabase is configured)
+// ═══════════════════════════════════════════════
+function setupRealtime() {
+  if (!USE_SUPABASE) return;
+
+  supabaseClient.channel('vacations-changes')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'vacations' }, async () => {
+      vacations = await fetchVacations();
+      renderCalendar();
+    })
+    .subscribe();
+
+  supabaseClient.channel('diary-changes')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'diary_entries' }, async () => {
+      diaryEntries = await fetchDiary();
+      if (document.getElementById('view-diary').classList.contains('active')) renderDiary();
+    })
+    .subscribe();
+}
+
+// ═══════════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════════
-renderCalendar();
+async function init() {
+  applyThemeIcon();
 
-// Telegram Web App integration
-if (window.Telegram && window.Telegram.WebApp) {
-  const twa = window.Telegram.WebApp;
-  twa.ready();
-  twa.expand();
+  if (!USE_SUPABASE) {
+    document.getElementById('config-banner').style.display = 'flex';
+  }
+
+  try { vacations = await fetchVacations(); } catch (e) { console.error(e); vacations = {}; }
+  renderCalendar();
+
+  try { diaryEntries = await fetchDiary(); } catch (e) { console.error(e); diaryEntries = []; }
+  diaryPage = Math.ceil(diaryEntries.length / DIARY_PAGE_SIZE) || 1;
+
+  setupRealtime();
+
+  if (window.Telegram && window.Telegram.WebApp) {
+    window.Telegram.WebApp.ready();
+    window.Telegram.WebApp.expand();
+  }
 }
+
+init();
 </script>
 </body>
 </html>
