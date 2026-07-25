@@ -3,7 +3,7 @@
 <head>
 <script>
   // Apply saved theme before paint (avoids flash)
-  (function () {
+  (function () { 
     var t = localStorage.getItem('petzker_theme') || 'light';
     document.documentElement.setAttribute('data-theme', t);
   })();
@@ -135,6 +135,7 @@
       flex-shrink: 0;
     }
     .theme-toggle:hover { border-color: var(--blue); color: var(--blue); }
+    .theme-toggle:active { transform: scale(.92) rotate(-8deg); }
     .theme-toggle svg { width: 18px; height: 18px; }
 
     /* ── TABS ── */
@@ -153,10 +154,15 @@
       transition: all 0.2s;
     }
     .tab.active { color: var(--blue); border-bottom-color: var(--blue); }
+    .tab:active { transform: scale(.97); }
 
     /* ── VIEWS ── */
     .view { display: none; padding: 20px; }
-    .view.active { display: block; }
+    .view.active { display: block; animation: viewFade .28s ease; }
+    @keyframes viewFade {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
 
     /* ── CONFIG BANNER ── */
     .config-banner {
@@ -178,7 +184,7 @@
       justify-content: space-between;
       margin-bottom: 20px;
     }
-    .month-label { font-size: 17px; font-weight: 700; text-transform: capitalize; }
+    .month-label { font-size: 17px; font-weight: 700; text-transform: capitalize; transition: opacity .15s; }
     .nav-btn {
       width: 36px;
       height: 36px;
@@ -194,6 +200,7 @@
       font-size: 16px;
     }
     .nav-btn:hover { border-color: var(--blue); color: var(--blue); }
+    .nav-btn:active { transform: scale(.9); }
 
     .weekdays {
       display: grid;
@@ -224,18 +231,30 @@
       cursor: pointer;
       background: var(--surface);
       border: 1.5px solid transparent;
-      transition: all 0.15s;
+      transition: border-color .15s, background-color .15s, transform .15s;
       position: relative;
       padding: 4px 2px;
+      animation: cellIn .3s ease both;
     }
+    @keyframes cellIn {
+      from { opacity: 0; transform: translateY(5px) scale(.94); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    @keyframes cellPulse {
+      0% { transform: scale(1); }
+      35% { transform: scale(1.14); }
+      100% { transform: scale(1); }
+    }
+    .day-cell.cell-pulse { animation: cellPulse .45s ease; }
+    .day-cell.empty { background: transparent; cursor: default; animation: none; }
     .day-cell:hover:not(.empty):not(.past) { border-color: var(--blue); }
-    .day-cell.empty { background: transparent; cursor: default; }
+    .day-cell:active:not(.empty):not(.past) { transform: scale(.93); }
     .day-cell.past { opacity: 0.35; cursor: default; }
     .day-cell.today { border-color: var(--blue); color: var(--blue); font-weight: 700; }
     .day-cell.weekend-day { color: var(--red); }
     .day-cell.has-one { border-color: var(--green); }
     .day-cell.has-two { border-color: var(--orange); background: var(--orange-light); }
-    .day-cell.full { border-color: var(--red); background: var(--red-light); opacity: 0.6; cursor: not-allowed; }
+    .day-cell.full { border-color: var(--red); background: var(--red-light); opacity: 0.65; }
 
     .day-num { font-size: 13px; line-height: 1; }
     .day-dots { display: flex; gap: 2px; margin-top: 3px; }
@@ -274,6 +293,7 @@
       align-items: center;
       gap: 12px;
       border: 1px solid var(--border);
+      animation: entryIn .3s ease both;
     }
     .upcoming-date {
       min-width: 42px;
@@ -301,22 +321,41 @@
     .overlay {
       position: fixed; inset: 0; background: rgba(0,0,0,0.4);
       z-index: 200; display: none; align-items: flex-end; justify-content: center;
+      opacity: 0; transition: opacity .2s;
     }
-    .overlay.open { display: flex; }
+    .overlay.open { display: flex; opacity: 1; }
     .modal {
       background: var(--surface);
       border-radius: 24px 24px 0 0;
       padding: 24px 24px 36px;
       width: 100%;
       max-width: 480px;
-      animation: slideUp 0.25s ease;
+      animation: slideUp 0.28s cubic-bezier(.2,.9,.3,1.2);
     }
-    @keyframes slideUp { from { transform: translateY(40px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    @keyframes slideUp { from { transform: translateY(60px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
     .modal-handle { width: 40px; height: 4px; background: var(--border); border-radius: 2px; margin: 0 auto 20px; }
     .modal-title { font-size: 18px; font-weight: 700; margin-bottom: 6px; }
-    .modal-sub { font-size: 13px; color: var(--text-muted); margin-bottom: 20px; }
+    .modal-sub { font-size: 13px; color: var(--text-muted); margin-bottom: 20px; transition: color .15s; }
     .modal-who { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
-    .who-chip { background: var(--blue-light); color: var(--blue); border-radius: 20px; padding: 5px 12px; font-size: 13px; font-weight: 500; }
+    .who-chip {
+      display: inline-flex; align-items: center; gap: 4px;
+      background: var(--blue-light); color: var(--blue); border-radius: 20px;
+      padding: 5px 6px 5px 12px; font-size: 13px; font-weight: 500;
+      animation: chipIn .25s ease both;
+      transition: opacity .2s, transform .2s;
+    }
+    @keyframes chipIn { from { opacity: 0; transform: scale(.85); } to { opacity: 1; transform: scale(1); } }
+    .who-chip.removing { animation: chipOut .22s ease forwards; }
+    @keyframes chipOut { to { opacity: 0; transform: scale(.75); } }
+    .chip-remove {
+      width: 18px; height: 18px; border-radius: 50%; border: none;
+      background: rgba(46,123,238,0.15); color: var(--blue);
+      font-size: 13px; line-height: 1; cursor: pointer; display: flex;
+      align-items: center; justify-content: center; padding: 0;
+      transition: all .15s; font-family: inherit;
+    }
+    .chip-remove:hover { background: var(--red-light); color: var(--red); }
+    .chip-remove:active { transform: scale(.85); }
     .modal-input {
       width: 100%;
       padding: 13px 16px;
@@ -330,26 +369,33 @@
       color: var(--text);
     }
     .modal-input:focus { border-color: var(--blue); }
-    .modal-input.error { border-color: var(--red); }
+    .modal-input.error { border-color: var(--red); animation: shake .3s; }
+    @keyframes shake {
+      25% { transform: translateX(-4px); }
+      75% { transform: translateX(4px); }
+    }
     .modal-error { color: var(--red); font-size: 12px; margin-top: 6px; display: none; }
-    .modal-error.show { display: block; }
+    .modal-error.show { display: block; animation: entryIn .2s ease; }
     .modal-actions { display: flex; gap: 10px; margin-top: 16px; }
     .btn-primary {
       flex: 1; padding: 14px; background: var(--blue); color: white; border: none;
       border-radius: var(--radius-sm); font-size: 15px; font-weight: 600; cursor: pointer;
-      font-family: inherit; transition: opacity 0.15s;
+      font-family: inherit; transition: opacity 0.15s, transform .15s;
     }
     .btn-primary:hover { opacity: 0.9; }
+    .btn-primary:active { transform: scale(.97); }
+    .btn-primary:disabled { opacity: .6; cursor: default; }
     .btn-secondary {
       padding: 14px 20px; background: var(--bg); color: var(--text-muted);
       border: 1px solid var(--border); border-radius: var(--radius-sm);
       font-size: 15px; font-weight: 500; cursor: pointer; font-family: inherit;
+      transition: transform .15s;
     }
-    .btn-remove {
-      width: 100%; padding: 13px; background: var(--red-light); color: var(--red);
-      border: 1px solid var(--red); border-radius: var(--radius-sm);
-      font-size: 14px; font-weight: 500; cursor: pointer; font-family: inherit; margin-top: 8px;
-      opacity: .85;
+    .btn-secondary:active { transform: scale(.97); }
+    .modal-full-note {
+      font-size: 12.5px; color: var(--text-muted); background: var(--bg);
+      border: 1px dashed var(--border); border-radius: var(--radius-sm);
+      padding: 10px 12px; margin-bottom: 4px;
     }
 
     /* ── DIARY ── */
@@ -388,12 +434,18 @@
     .diary-add-btn {
       margin-top: 6px; padding: 10px 22px; background: var(--diary-accent); color: var(--diary-bg);
       border: none; border-radius: 20px; font-family: 'Caveat', cursive; font-size: 16px;
-      cursor: pointer; transition: opacity 0.2s; font-weight: 600;
+      cursor: pointer; transition: opacity 0.2s, transform .15s; font-weight: 600;
     }
     .diary-add-btn:hover { opacity: 0.85; }
+    .diary-add-btn:active { transform: scale(.95); }
+    .diary-add-btn:disabled { opacity: .5; cursor: default; }
     .diary-divider { height: 1px; background: var(--diary-line); margin: 20px 0; }
     .diary-entries { display: flex; flex-direction: column; gap: 0; min-height: 60px; }
-    .diary-entry { padding: 12px 0; border-bottom: 1px dashed var(--diary-entry-border); }
+    .diary-entry { padding: 12px 0; border-bottom: 1px dashed var(--diary-entry-border); animation: entryIn .3s ease both; }
+    @keyframes entryIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
     .diary-entry-date { font-family: 'Caveat', cursive; font-size: 13px; color: var(--diary-muted); margin-bottom: 4px; }
     .diary-entry-text { font-family: 'Caveat', cursive; font-size: 18px; color: var(--diary-text); line-height: 1.6; white-space: pre-wrap; }
     .diary-empty { font-family: 'Caveat', cursive; font-size: 17px; color: var(--diary-empty); text-align: center; padding: 32px 0; font-style: italic; }
@@ -407,18 +459,20 @@
       justify-content: center; font-family: 'Inter', sans-serif; transition: all .15s;
     }
     .page-btn:hover:not(:disabled) { border-color: var(--diary-accent); color: var(--diary-accent); }
+    .page-btn:active:not(:disabled) { transform: scale(.9); }
     .page-btn.active { background: var(--diary-accent); border-color: var(--diary-accent); color: var(--diary-bg); }
     .page-btn:disabled { opacity: .3; cursor: not-allowed; }
     .page-ellipsis { color: var(--diary-muted); font-size: 13px; padding: 0 2px; }
 
     /* ── TOAST ── */
     .toast {
-      position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%) translateY(20px);
+      position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%) translateY(16px) scale(.9);
       background: #1A1D23; color: white; padding: 10px 20px; border-radius: 30px;
-      font-size: 13px; font-weight: 500; opacity: 0; transition: all 0.25s;
+      font-size: 13px; font-weight: 500; opacity: 0;
+      transition: opacity .25s, transform .3s cubic-bezier(.34,1.56,.64,1);
       z-index: 300; pointer-events: none; white-space: nowrap; max-width: 90vw; text-align: center;
     }
-    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
   </style>
 </head>
 <body>
@@ -450,9 +504,9 @@
   </div>
 
   <div class="calendar-nav">
-    <button class="nav-btn" onclick="changeMonth(-1)">‹</button>
+    <button class="nav-btn" onclick="changeMonth(-1)" aria-label="Предыдущий месяц">‹</button>
     <div class="month-label" id="month-label"></div>
-    <button class="nav-btn" onclick="changeMonth(1)">›</button>
+    <button class="nav-btn" onclick="changeMonth(1)" aria-label="Следующий месяц">›</button>
   </div>
 
   <div class="weekdays">
@@ -485,7 +539,7 @@
     <div class="diary-new-entry">
       <div class="diary-date-label" id="diary-today-label"></div>
       <textarea class="diary-textarea" id="diary-input" placeholder="Что хорошего было сегодня или вчера?.."></textarea>
-      <button class="diary-add-btn" onclick="addDiaryEntry()">Записать ✦</button>
+      <button class="diary-add-btn" id="diary-add-btn" onclick="addDiaryEntry()">Записать ✦</button>
     </div>
     <div class="diary-divider"></div>
     <div class="diary-entries" id="diary-entries"></div>
@@ -501,14 +555,18 @@
     <div class="modal-sub" id="modal-sub"></div>
     <div class="modal-who" id="modal-who"></div>
     <div id="modal-form">
-      <input class="modal-input" id="name-input" type="text" placeholder="Ваше имя" maxlength="30"
-             onkeydown="if(event.key==='Enter') confirmDay()" />
-      <div class="modal-error" id="modal-error"></div>
+      <div id="add-form-fields">
+        <input class="modal-input" id="name-input" type="text" placeholder="Ваше имя" maxlength="30"
+               onkeydown="if(event.key==='Enter') confirmDay()" />
+        <div class="modal-error" id="modal-error"></div>
+      </div>
+      <div id="full-note" class="modal-full-note" style="display:none">
+        Чтобы записать нового человека, сначала уберите кого-то — нажмите × рядом с именем выше.
+      </div>
       <div class="modal-actions">
         <button class="btn-secondary" onclick="closeModal()">Отмена</button>
-        <button class="btn-primary" onclick="confirmDay()">Взять выходной</button>
+        <button class="btn-primary" id="confirm-btn" onclick="confirmDay()">Взять выходной</button>
       </div>
-      <button class="btn-remove" id="remove-btn" onclick="removeMyself()" style="display:none">Убрать свой выходной</button>
     </div>
   </div>
 </div>
@@ -681,7 +739,36 @@ let selectedKey = null;
 let vacations = {};
 let diaryEntries = [];
 let diaryPage = 1;
+let highlightKey = null; // day-cell to pulse on next calendar render
 const DIARY_PAGE_SIZE = 6;
+
+// ═══════════════════════════════════════════════
+// TELEGRAM HELPERS (haptics + native confirm, with safe fallbacks)
+// ═══════════════════════════════════════════════
+function haptic(kind) {
+  try {
+    const tg = window.Telegram && window.Telegram.WebApp;
+    if (!tg || !tg.HapticFeedback) return;
+    if (kind === 'success' || kind === 'error' || kind === 'warning') {
+      tg.HapticFeedback.notificationOccurred(kind);
+    } else {
+      tg.HapticFeedback.impactOccurred(kind || 'light');
+    }
+  } catch (e) { /* haptics are a nice-to-have, never block on failure */ }
+}
+
+function askConfirm(message) {
+  return new Promise((resolve) => {
+    try {
+      const tg = window.Telegram && window.Telegram.WebApp;
+      if (tg && typeof tg.showConfirm === 'function') {
+        tg.showConfirm(message, (ok) => resolve(!!ok));
+        return;
+      }
+    } catch (e) { /* fall through to browser confirm */ }
+    resolve(window.confirm(message));
+  });
+}
 
 // ═══════════════════════════════════════════════
 // THEME
@@ -700,6 +787,7 @@ function toggleTheme() {
   html.setAttribute('data-theme', next);
   localStorage.setItem('petzker_theme', next);
   applyThemeIcon();
+  haptic('light');
 }
 
 // ═══════════════════════════════════════════════
@@ -712,6 +800,7 @@ function switchTab(tab) {
   document.getElementById('view-calendar').classList.toggle('active', tab === 'calendar');
   document.getElementById('view-diary').classList.toggle('active', tab === 'diary');
   if (tab === 'diary') renderDiary();
+  haptic('light');
 }
 
 // ═══════════════════════════════════════════════
@@ -731,6 +820,7 @@ function changeMonth(dir) {
     curMonth = today.getMonth(); curYear = today.getFullYear();
   }
   renderCalendar();
+  haptic('light');
 }
 
 function renderCalendar() {
@@ -749,6 +839,7 @@ function renderCalendar() {
     grid.appendChild(el);
   }
 
+  let animIndex = 0;
   for (let d = 1; d <= daysInMonth; d++) {
     const key = dayKey(curYear, curMonth, d);
     const date = new Date(curYear, curMonth, d);
@@ -766,6 +857,12 @@ function renderCalendar() {
     if (count === 1) cell.classList.add('has-one');
     if (count === 2) cell.classList.add('has-two');
     if (count >= 2) cell.classList.add('full');
+    if (key === highlightKey) {
+      cell.classList.add('cell-pulse');
+    } else {
+      cell.style.animationDelay = Math.min(animIndex * 10, 220) + 'ms';
+    }
+    animIndex++;
 
     let dots = '';
     if (count > 0) {
@@ -777,6 +874,7 @@ function renderCalendar() {
     grid.appendChild(cell);
   }
 
+  highlightKey = null;
   renderUpcoming();
 }
 
@@ -798,16 +896,17 @@ function renderUpcoming() {
     return;
   }
 
-  relevant.forEach(([key, names]) => {
+  relevant.forEach(([key, names], i) => {
     const d = new Date(key + 'T00:00:00');
     const item = document.createElement('div');
     item.className = 'upcoming-item';
+    item.style.animationDelay = Math.min(i * 30, 200) + 'ms';
     item.innerHTML = `
       <div class="upcoming-date">
         <div class="ud-day">${d.getDate()}</div>
         <div class="ud-mon">${MONTHS_RU_GEN[d.getMonth()].slice(0,3)}</div>
       </div>
-      <div class="upcoming-names">${names.map(n => `<span class="name-chip">${n.name}</span>`).join('')}</div>`;
+      <div class="upcoming-names">${names.map(n => `<span class="name-chip">${escHtml(n.name)}</span>`).join('')}</div>`;
     list.appendChild(item);
   });
 }
@@ -821,19 +920,32 @@ function renderModalContent(day, names) {
 
   const whoDiv = document.getElementById('modal-who');
   if (names.length) {
-    whoDiv.innerHTML = names.map(n => `<span class="who-chip">${n.name}</span>`).join('');
+    whoDiv.innerHTML = names.map(n => `
+      <span class="who-chip" data-id="${n.id}" data-name="${escAttr(n.name)}">
+        <span>${escHtml(n.name)}</span>
+        <button type="button" class="chip-remove" aria-label="Убрать ${escHtml(n.name)}">×</button>
+      </span>`).join('');
     whoDiv.style.display = 'flex';
   } else {
+    whoDiv.innerHTML = '';
     whoDiv.style.display = 'none';
   }
 
   const full = names.length >= 2;
+  const addFields = document.getElementById('add-form-fields');
+  const confirmBtn = document.getElementById('confirm-btn');
+  const fullNote = document.getElementById('full-note');
+
   if (full) {
-    document.getElementById('modal-sub').textContent = '😅 Уже 2 человека — мест нет!';
-    document.getElementById('modal-form').style.display = 'none';
+    document.getElementById('modal-sub').textContent = '😅 Уже 2 человека — мест нет.';
+    addFields.style.display = 'none';
+    confirmBtn.style.display = 'none';
+    fullNote.style.display = 'block';
   } else {
     document.getElementById('modal-sub').textContent = names.length ? 'Ещё одно место свободно!' : 'Запишите своё имя';
-    document.getElementById('modal-form').style.display = 'block';
+    addFields.style.display = 'block';
+    confirmBtn.style.display = 'block';
+    fullNote.style.display = 'none';
   }
 }
 
@@ -843,13 +955,21 @@ async function openModal(key, day) {
   document.getElementById('name-input').value = '';
   document.getElementById('name-input').classList.remove('error');
   document.getElementById('modal-error').classList.remove('show');
-  document.getElementById('remove-btn').style.display = 'none';
+
+  // Optimistic instant render from cache, then refresh from source of truth
+  renderModalContent(key, vacations[key] || []);
+  haptic('light');
 
   const names = await fetchDayEntries(key);
+  // Guard against the user having already navigated away from this day
+  if (selectedKey !== key) return;
   vacations[key] = names;
   renderModalContent(key, names);
 
-  setTimeout(() => document.getElementById('name-input').focus(), 200);
+  setTimeout(() => {
+    const input = document.getElementById('name-input');
+    if (input.offsetParent !== null) input.focus();
+  }, 200);
 }
 
 function closeModal() {
@@ -875,54 +995,82 @@ async function confirmDay() {
 
   const current = await fetchDayEntries(selectedKey);
   vacations[selectedKey] = current;
-  renderModalContent(selectedKey, current);
 
-  if (current.some(v => v.name === name)) {
-    document.getElementById('remove-btn').style.display = 'block';
-    errEl.textContent = `${name} уже записан — хотите убрать?`;
+  const lowerName = name.toLowerCase();
+  if (current.some(v => v.name.trim().toLowerCase() === lowerName)) {
+    renderModalContent(selectedKey, current);
+    nameEl.classList.add('error');
+    errEl.textContent = `${name} уже записан(а) на этот день. Уберите через × выше, если нужно.`;
     errEl.classList.add('show');
+    haptic('warning');
     return;
   }
 
   if (current.length >= 2) {
-    errEl.textContent = 'Мест нет! Максимум 2 человека.';
-    errEl.classList.add('show');
+    renderModalContent(selectedKey, current);
+    haptic('warning');
     return;
   }
+
+  const confirmBtn = document.getElementById('confirm-btn');
+  const originalLabel = confirmBtn.textContent;
+  confirmBtn.disabled = true;
+  confirmBtn.textContent = 'Сохраняем…';
 
   try {
     const entry = await insertVacation(selectedKey, name);
     if (!vacations[selectedKey]) vacations[selectedKey] = [];
     vacations[selectedKey].push(entry);
+    highlightKey = selectedKey;
     closeModal();
     renderCalendar();
-    showToast(`✅ ${name} записан на выходной!`);
+    showToast(`✅ ${name} записан(а) на выходной!`);
+    haptic('success');
   } catch (e) {
     console.error(e);
     errEl.textContent = 'Ошибка сохранения. Попробуйте ещё раз.';
     errEl.classList.add('show');
+    haptic('error');
+  } finally {
+    confirmBtn.disabled = false;
+    confirmBtn.textContent = originalLabel;
   }
 }
 
-async function removeMyself() {
-  const name = document.getElementById('name-input').value.trim();
-  if (!name) return;
-  const list = vacations[selectedKey] || [];
-  const match = list.find(v => v.name === name);
-  if (!match) return;
+// Delete a single vacation entry directly from its chip's × button
+async function handleChipRemove(id, name, chipEl) {
+  const ok = await askConfirm(`Убрать выходной для ${name}?`);
+  if (!ok) return;
 
+  chipEl.classList.add('removing');
   try {
-    await deleteVacation(selectedKey, match.id);
-    vacations[selectedKey] = list.filter(v => v.id !== match.id);
+    await deleteVacation(selectedKey, id);
+    vacations[selectedKey] = (vacations[selectedKey] || []).filter(v => v.id !== id);
     if (!vacations[selectedKey].length) delete vacations[selectedKey];
-    closeModal();
+
+    highlightKey = selectedKey;
+    setTimeout(() => {
+      if (selectedKey) renderModalContent(selectedKey, vacations[selectedKey] || []);
+    }, 180);
     renderCalendar();
     showToast(`Выходной для ${name} убран`);
+    haptic('success');
   } catch (e) {
     console.error(e);
+    chipEl.classList.remove('removing');
     showToast('Ошибка. Попробуйте ещё раз.');
+    haptic('error');
   }
 }
+
+// One delegated listener handles clicks on any chip's × button, present or future
+document.getElementById('modal-who').addEventListener('click', function (e) {
+  const btn = e.target.closest('.chip-remove');
+  if (!btn) return;
+  const chip = btn.closest('.who-chip');
+  if (!chip) return;
+  handleChipRemove(chip.dataset.id, chip.dataset.name, chip);
+});
 
 // ═══════════════════════════════════════════════
 // DIARY (chronological, paginated — oldest on top, newest at bottom)
@@ -949,9 +1097,10 @@ function renderDiary() {
   if (!diaryEntries.length) {
     container.innerHTML = '<div class="diary-empty">Пока пусто... Напишите первым ✦</div>';
   } else {
-    pageEntries.forEach(e => {
+    pageEntries.forEach((e, i) => {
       const div = document.createElement('div');
       div.className = 'diary-entry';
+      div.style.animationDelay = Math.min(i * 40, 220) + 'ms';
       div.innerHTML = `<div class="diary-entry-date">${formatDiaryDate(e.created_at)}</div>
         <div class="diary-entry-text">${escHtml(e.text)}</div>`;
       container.appendChild(div);
@@ -992,12 +1141,17 @@ function renderPagination(totalPages) {
   el.innerHTML = html;
 }
 
-function goToDiaryPage(p) { diaryPage = p; renderDiary(); }
+function goToDiaryPage(p) { diaryPage = p; renderDiary(); haptic('light'); }
 
 async function addDiaryEntry() {
   const ta = document.getElementById('diary-input');
+  const btn = document.getElementById('diary-add-btn');
   const text = ta.value.trim();
   if (!text) return;
+
+  const originalLabel = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Записываем…';
 
   try {
     const entry = await insertDiaryEntry(text);
@@ -1006,14 +1160,22 @@ async function addDiaryEntry() {
     diaryPage = Math.ceil(diaryEntries.length / DIARY_PAGE_SIZE); // jump to last page (newest)
     renderDiary();
     showToast('✦ Записано!');
+    haptic('success');
   } catch (e) {
     console.error(e);
     showToast('Ошибка сохранения. Попробуйте ещё раз.');
+    haptic('error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = originalLabel;
   }
 }
 
 function escHtml(s) {
-  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+}
+function escAttr(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
 // ═══════════════════════════════════════════════
