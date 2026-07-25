@@ -520,13 +520,20 @@
 // SUPABASE CONFIG — вставьте свои значения сюда
 // (инструкция в README.md)
 // ═══════════════════════════════════════════════
-const SUPABASE_URL = 'https://heubrattlnikielnfheg.supabase.co/rest/v1/';
+// Пример: 'https://heubrattlnikielnfheg.supabase.co'
+const SUPABASE_URL = 'https://heubrattlnikielnfheg.supabase.co';
+// Пример: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhldWJyYXR0bG5pa2llbG5maGVnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ5NzYyMjcsImV4cCI6MjEwMDU1MjIyN30._lRs77YnsILFN_Ru4uR2wDWQFtAlazZh8UaaKa7fsnM';
 
 const USE_SUPABASE = SUPABASE_URL.indexOf('http') === 0 && SUPABASE_ANON_KEY.length > 20;
 let supabaseClient = null;
 if (USE_SUPABASE) {
-  supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  try {
+    supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    console.log('✓ Supabase connected:', SUPABASE_URL);
+  } catch (e) {
+    console.error('Supabase init error:', e);
+  }
 }
 
 // ═══════════════════════════════════════════════
@@ -556,28 +563,49 @@ function uid() {
 // ═══════════════════════════════════════════════
 async function fetchVacations() {
   if (!USE_SUPABASE) return loadVacationsLocal();
-  const { data, error } = await supabaseClient.from('vacations').select('*').order('created_at');
-  if (error) { console.error(error); return loadVacationsLocal(); }
-  const grouped = {};
-  data.forEach(row => {
-    if (!grouped[row.day]) grouped[row.day] = [];
-    grouped[row.day].push({ id: row.id, name: row.name });
-  });
-  return grouped;
+  try {
+    const { data, error } = await supabaseClient
+      .from('vacations')
+      .select('*')
+      .order('created_at', { ascending: true });
+    if (error) { console.error('fetchVacations error:', error); return loadVacationsLocal(); }
+    const grouped = {};
+    (data || []).forEach(row => {
+      const dayStr = typeof row.day === 'string' ? row.day : row.day;
+      if (!grouped[dayStr]) grouped[dayStr] = [];
+      grouped[dayStr].push({ id: row.id, name: row.name });
+    });
+    return grouped;
+  } catch (e) { console.error('fetchVacations catch:', e); return loadVacationsLocal(); }
 }
 
 async function fetchDayEntries(day) {
   if (!USE_SUPABASE) return loadVacationsLocal()[day] || [];
-  const { data, error } = await supabaseClient.from('vacations').select('*').eq('day', day).order('created_at');
-  if (error) { console.error(error); return vacations[day] || []; }
-  return data.map(r => ({ id: r.id, name: r.name }));
+  try {
+    const { data, error } = await supabaseClient
+      .from('vacations')
+      .select('*')
+      .eq('day', day)
+      .order('created_at', { ascending: true });
+    if (error) { console.error('fetchDayEntries error:', error); return vacations[day] || []; }
+    return (data || []).map(r => ({ id: r.id, name: r.name }));
+  } catch (e) { console.error('fetchDayEntries catch:', e); return vacations[day] || []; }
 }
 
 async function insertVacation(day, name) {
   if (USE_SUPABASE) {
-    const { data, error } = await supabaseClient.from('vacations').insert({ day, name }).select().single();
-    if (error) throw error;
-    return { id: data.id, name };
+    try {
+      const { data, error } = await supabaseClient
+        .from('vacations')
+        .insert([{ day, name }])
+        .select()
+        .single();
+      if (error) throw new Error(error.message);
+      return { id: data.id, name };
+    } catch (e) {
+      console.error('insertVacation error:', e);
+      throw e;
+    }
   }
   const id = uid();
   const all = loadVacationsLocal();
@@ -589,8 +617,16 @@ async function insertVacation(day, name) {
 
 async function deleteVacation(day, id) {
   if (USE_SUPABASE) {
-    const { error } = await supabaseClient.from('vacations').delete().eq('id', id);
-    if (error) throw error;
+    try {
+      const { error } = await supabaseClient
+        .from('vacations')
+        .delete()
+        .eq('id', id);
+      if (error) throw new Error(error.message);
+    } catch (e) {
+      console.error('deleteVacation error:', e);
+      throw e;
+    }
     return;
   }
   const all = loadVacationsLocal();
@@ -603,16 +639,30 @@ async function deleteVacation(day, id) {
 
 async function fetchDiary() {
   if (!USE_SUPABASE) return loadDiaryLocal();
-  const { data, error } = await supabaseClient.from('diary_entries').select('*').order('created_at', { ascending: true });
-  if (error) { console.error(error); return loadDiaryLocal(); }
-  return data.map(r => ({ id: r.id, text: r.text, created_at: r.created_at }));
+  try {
+    const { data, error } = await supabaseClient
+      .from('diary_entries')
+      .select('*')
+      .order('created_at', { ascending: true });
+    if (error) { console.error('fetchDiary error:', error); return loadDiaryLocal(); }
+    return (data || []).map(r => ({ id: r.id, text: r.text, created_at: r.created_at }));
+  } catch (e) { console.error('fetchDiary catch:', e); return loadDiaryLocal(); }
 }
 
 async function insertDiaryEntry(text) {
   if (USE_SUPABASE) {
-    const { data, error } = await supabaseClient.from('diary_entries').insert({ text }).select().single();
-    if (error) throw error;
-    return { id: data.id, text, created_at: data.created_at };
+    try {
+      const { data, error } = await supabaseClient
+        .from('diary_entries')
+        .insert([{ text }])
+        .select()
+        .single();
+      if (error) throw new Error(error.message);
+      return { id: data.id, text, created_at: data.created_at };
+    } catch (e) {
+      console.error('insertDiaryEntry error:', e);
+      throw e;
+    }
   }
   const entry = { id: uid(), text, created_at: new Date().toISOString() };
   const all = loadDiaryLocal();
@@ -982,21 +1032,48 @@ function showToast(msg) {
 // REALTIME (only active when Supabase is configured)
 // ═══════════════════════════════════════════════
 function setupRealtime() {
-  if (!USE_SUPABASE) return;
+  if (!USE_SUPABASE) {
+    console.log('Realtime disabled - Supabase not configured');
+    return;
+  }
 
-  supabaseClient.channel('vacations-changes')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'vacations' }, async () => {
-      vacations = await fetchVacations();
-      renderCalendar();
-    })
-    .subscribe();
+  try {
+    supabaseClient
+      .channel('public:vacations')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'vacations' },
+        (payload) => {
+          console.log('Vacations changed:', payload);
+          fetchVacations().then(v => {
+            vacations = v;
+            renderCalendar();
+          });
+        }
+      )
+      .subscribe((status) => {
+        console.log('Vacations subscription status:', status);
+      });
 
-  supabaseClient.channel('diary-changes')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'diary_entries' }, async () => {
-      diaryEntries = await fetchDiary();
-      if (document.getElementById('view-diary').classList.contains('active')) renderDiary();
-    })
-    .subscribe();
+    supabaseClient
+      .channel('public:diary_entries')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'diary_entries' },
+        (payload) => {
+          console.log('Diary changed:', payload);
+          fetchDiary().then(d => {
+            diaryEntries = d;
+            if (document.getElementById('view-diary').classList.contains('active')) renderDiary();
+          });
+        }
+      )
+      .subscribe((status) => {
+        console.log('Diary subscription status:', status);
+      });
+  } catch (e) {
+    console.error('Realtime setup error:', e);
+  }
 }
 
 // ═══════════════════════════════════════════════
